@@ -1,361 +1,4 @@
- local plrs = game:GetService("Players")
-local ts = game:GetService("TweenService")
-local uis = game:GetService("UserInputService")
-local ws = game:GetService("Workspace")
-local rs = game:GetService("ReplicatedStorage")
-local tps = game:GetService("TeleportService")
-local hs = game:GetService("HttpService")
-
-getgenv().WebhookURL = ""
-
-local lp = plrs.LocalPlayer
-local pgui = lp:WaitForChild("PlayerGui")
-
-local gui = Instance.new("ScreenGui")
-gui.Name = "DiamondFarmGUI"
-gui.ResetOnSpawn = false
-gui.Parent = pgui
-
-local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 280, 0, 160)
-main.Position = UDim2.new(0.5, 0, 0.5, 0)
-main.AnchorPoint = Vector2.new(0.5, 0.5)
-main.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-main.BorderSizePixel = 0
-main.ClipsDescendants = true
-main.Parent = gui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 10)
-corner.Parent = main
-
-local grad = Instance.new("UIGradient")
-grad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(128,0,255)),
-    ColorSequenceKeypoint.new(0.3, Color3.fromRGB(255,0,128)),
-    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0,128,255)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(20,20,20))
-})
-grad.Rotation = 45
-grad.Parent = main
-
-local top = Instance.new("Frame")
-top.Size = UDim2.new(1, 0, 0, 40)
-top.BackgroundTransparency = 1
-top.Parent = main
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -40, 1, 0)
-title.Position = UDim2.new(0, 10, 0, 0)
-title.BackgroundTransparency = 1
-title.Text = "CPS Nerf / mrpopcat14"
-title.TextColor3 = Color3.fromRGB(255,255,255)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 16
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.Parent = top
-
-local minBtn = Instance.new("TextButton")
-minBtn.Size = UDim2.new(0, 30, 0, 30)
-minBtn.Position = UDim2.new(1, -35, 0, 5)
-minBtn.BackgroundTransparency = 1
-minBtn.Text = "-"
-minBtn.TextColor3 = Color3.fromRGB(255,255,255)
-minBtn.Font = Enum.Font.GothamBold
-minBtn.TextSize = 20
-minBtn.Parent = top
-
-local btnFrame = Instance.new("Frame")
-btnFrame.Size = UDim2.new(1, 0, 1, -40)
-btnFrame.Position = UDim2.new(0, 0, 0, 40)
-btnFrame.BackgroundTransparency = 1
-btnFrame.Parent = main
-
-local diamondText = Instance.new("TextLabel")
-diamondText.Size = UDim2.new(1, -20, 0, 30)
-diamondText.Position = UDim2.new(0, 10, 0, 10)
-diamondText.BackgroundTransparency = 1
-diamondText.Text = "Diamonds: 0"
-diamondText.TextColor3 = Color3.fromRGB(255, 255, 255)
-diamondText.Font = Enum.Font.GothamBold
-diamondText.TextSize = 16
-diamondText.TextXAlignment = Enum.TextXAlignment.Left
-diamondText.Parent = btnFrame
-
-local dcBtn = Instance.new("TextButton")
-dcBtn.Size = UDim2.new(0, 180, 0, 40)
-dcBtn.AnchorPoint = Vector2.new(0.5,0.5)
-dcBtn.Position = UDim2.new(0.5, 0, 0.5, 30)
-dcBtn.BackgroundColor3 = Color3.fromRGB(0,0,0)
-dcBtn.BackgroundTransparency = 0.5
-dcBtn.BorderSizePixel = 0
-dcBtn.Text = "Copy Discord Invite"
-dcBtn.TextColor3 = Color3.fromRGB(255,255,255)
-dcBtn.Font = Enum.Font.GothamBold
-dcBtn.TextSize = 14
-dcBtn.Parent = btnFrame
-
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 6)
-btnCorner.Parent = dcBtn
-
-dcBtn.MouseEnter:Connect(function()
-    ts:Create(dcBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.2}):Play()
-end)
-
-dcBtn.MouseLeave:Connect(function()
-    ts:Create(dcBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.5}):Play()
-end)
-
-dcBtn.MouseButton1Click:Connect(function()
-    setclipboard("https://discord.gg/pdp65qN3Ck")
-    ts:Create(dcBtn, TweenInfo.new(0.1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out, 0, true), {Size = UDim2.new(0,170,0,36)}):Play()
-end)
-
-local minimized = false
-minBtn.MouseButton1Click:Connect(function()
-    minimized = not minimized
-    if minimized then
-        ts:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0,280,0,40)}):Play()
-        ts:Create(dcBtn, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(1,-90,0,20)}):Play()
-        diamondText.Visible = false
-    else
-        ts:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0,280,0,160)}):Play()
-        ts:Create(dcBtn, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0.5,0,0.5,30)}):Play()
-        diamondText.Visible = true
-    end
-end)
-
-spawn(function()
-    while true do
-        grad.Rotation = grad.Rotation + 1
-        wait(0.02)
-    end
-end)
-
-local dragging = false
-local dragInput
-local dragStart
-local startPos
-
-local function update(input)
-    local delta = input.Position - dragStart
-    main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
-
-top.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = main.Position
-
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-top.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
-end)
-
-uis.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        update(input)
-    end
-end)
-
-local placeId = game.PlaceId  
-local takeDiamonds = rs:WaitForChild("RemoteEvents"):WaitForChild("RequestTakeDiamonds")  
-local itemsFolder = ws:WaitForChild("Items")  
-
-local username = lp.Name
-local displayName = lp.DisplayName
-
-local sessionDiamonds = 0
-local totalDiamonds = 0
-local serverDiamonds = 0
-local lastCount = 0
-
-local function getDiamondCount()
-    local success, result = pcall(function()
-        local countObj = plrs[username].PlayerGui.Interface.DiamondCount.Count
-        return tonumber(countObj.Text) or 0
-    end)
-    
-    if success then
-        return result
-    else
-        return 0
-    end
-end
-
-local function updateDiamondDisplay()
-    local newCount = getDiamondCount()
-    
-    if newCount > lastCount then
-        local gained = newCount - lastCount
-        sessionDiamonds = sessionDiamonds + gained
-        serverDiamonds = serverDiamonds + gained
-        totalDiamonds = totalDiamonds + gained
-    end
-    
-    lastCount = newCount
-    diamondText.Text = "Diamonds: " .. newCount
-    return newCount
-end
-
-local function setupDiamondListener()
-    local success, countObj = pcall(function()
-        return plrs[username].PlayerGui.Interface.DiamondCount.Count
-    end)
-    
-    if success and countObj:IsA("TextLabel") then
-        countObj:GetPropertyChangedSignal("Text"):Connect(function()
-            updateDiamondDisplay()
-        end)
-        
-        updateDiamondDisplay()
-    else
-        diamondText.Text = "Diamonds: N/A"
-    end
-    
-    while true do
-        updateDiamondDisplay()
-        wait(1)
-    end
-end
-
-local function sendWebhook()
-    if getgenv().WebhookURL == "" or getgenv().WebhookURL == nil then
-        return
-    end
-    
-    local time = os.date("%Y-%m-%d %H:%M:%S")
-    local jobId = game.JobId
-    
-    local embed = {
-        {
-            ["title"] = "Diamond Farming Report",
-            ["color"] = 0x00FF00,
-            ["fields"] = {
-                {
-                    ["name"] = "Player",
-                    ["value"] = displayName .. " (@" .. username .. ")",
-                    ["inline"] = true
-                },
-                {
-                    ["name"] = "Server Job ID",
-                    ["value"] = jobId,
-                    ["inline"] = true
-                },
-                {
-                    ["name"] = "Diamonds This Server",
-                    ["value"] = tostring(serverDiamonds),
-                    ["inline"] = true
-                },
-                {
-                    ["name"] = "Session Diamonds",
-                    ["value"] = tostring(sessionDiamonds),
-                    ["inline"] = true
-                },
-                {
-                    ["name"] = "Total Diamonds",
-                    ["value"] = tostring(totalDiamonds),
-                    ["inline"] = true
-                },
-                {
-                    ["name"] = "Time",
-                    ["value"] = time,
-                    ["inline"] = true
-                }
-            },
-            ["footer"] = {
-                ["text"] = "CPS Nerf Diamond Farm"
-            }
-        }
-    }
-    
-    local data = {
-        ["embeds"] = embed,
-        ["username"] = "Diamond Farm Bot",
-        ["avatar_url"] = "https://i.imgur.com/6e7WyzQ.png"
-    }
-    
-    local jsonData = hs:JSONEncode(data)
-    
-    pcall(function()
-        game:HttpPost(getgenv().WebhookURL, jsonData, Enum.HttpContentType.ApplicationJson)
-    end)
-end
-
-spawn(setupDiamondListener)
-
-local hrp
-local function updateHRP()
-    if lp.Character then
-        hrp = lp.Character:WaitForChild("HumanoidRootPart")
-    end
-end
-updateHRP()
-lp.CharacterAdded:Connect(updateHRP)
-
-local activeDiamonds = {}
-
-local function collectDiamond(diamond)  
-    if activeDiamonds[diamond] then return end  
-    activeDiamonds[diamond] = true  
-    task.spawn(function()  
-        while diamond.Parent and hrp do  
-            pcall(takeDiamonds.FireServer, takeDiamonds, diamond)  
-            pcall(function() hrp.CFrame = diamond.CFrame + Vector3.new(0,3,0) end)  
-            task.wait(0.05)  
-        end  
-        activeDiamonds[diamond] = nil  
-    end)  
-end  
-
-local function scanDiamonds()  
-    for _, diamond in ipairs(itemsFolder:GetChildren()) do  
-        if string.find(string.lower(diamond.Name), "diamond") then  
-            collectDiamond(diamond)
-        end  
-    end
-end  
-
-itemsFolder.ChildAdded:Connect(function(child)  
-    if string.find(string.lower(child.Name), "diamond") then  
-        collectDiamond(child)  
-    end  
-end)  
-
-local function fireChests()  
-    local chests = {}
-    
-    for _, obj in ipairs(ws:GetDescendants()) do  
-        if (obj:IsA("Model") or obj:IsA("Part")) and string.find(string.lower(obj.Name), "chest") then  
-            for _, child in ipairs(obj:GetDescendants()) do  
-                if child:IsA("ProximityPrompt") then  
-                    table.insert(chests, child)
-                end  
-            end  
-        end  
-    end
-    
-    for _, chest in ipairs(chests) do
-        task.spawn(function()
-            for i = 1, 3 do
-                pcall(fireproximityprompt, chest)
-                task.wait(0.1)
-            end
-        end)
-    end
-    
-    return #chests
+return #chests
 end  
 
 local function findStrongholdChest()
@@ -393,6 +36,8 @@ local function teleportToChest()
     
     local chestPart = findStrongholdChest()
     if chestPart then
+        diamondText.Text = "Teleporting to chest..."
+        
         pcall(function()
             hrp.CFrame = chestPart.CFrame + Vector3.new(0, 5, 0)
         end)
@@ -413,6 +58,8 @@ local function teleportToChest()
 end
 
 local function hopServer()  
+    diamondText.Text = "Finding server..."
+    
     sendWebhook()
     serverDiamonds = 0
     
@@ -498,7 +145,9 @@ local function setupAutoExec()
     
     if rs:FindFirstChild("DiamondFarmTeleported") then
         rs:FindFirstChild("DiamondFarmTeleported"):Destroy()
+        
         wait(5)
+        
         startFarm()
         return
     end
@@ -527,19 +176,23 @@ local function startFarm()
             cleanChars()
             
             if isDead() then
+                diamondText.Text = "Dead, hopping..."
                 hopWithAuto()
                 task.wait(10)
             end
             
             if lp.Character and hrp then
-                fireChests()
+                local chestsOpened = fireChests()
+                
                 scanDiamonds()
                 
                 chestCheck = chestCheck + 1
                 if chestCheck >= 2 then
                     chestCheck = 0
-                    teleportToChest()
-                    task.wait(2)
+                    if teleportToChest() then
+                        diamondText.Text = "Found chest!"
+                        task.wait(2)
+                    end
                 end
                 
                 hopCount = hopCount + 1
@@ -559,9 +212,11 @@ local function startFarm()
 end
 
 tps.TeleportInitFailed:Connect(function(player, result, error)
+    diamondText.Text = "Teleport failed"
     task.wait(3)
     hopWithAuto()
 end)
 
 setupAutoExec()
+
 startFarm()
