@@ -1,4 +1,4 @@
-local plrs = game:GetService("Players")
+ local plrs = game:GetService("Players")
 local ts = game:GetService("TweenService")
 local uis = game:GetService("UserInputService")
 local ws = game:GetService("Workspace")
@@ -180,7 +180,6 @@ local sessionDiamonds = 0
 local totalDiamonds = 0
 local serverDiamonds = 0
 local lastCount = 0
-local webhookSent = false
 
 local function getDiamondCount()
     local success, result = pcall(function()
@@ -203,7 +202,6 @@ local function updateDiamondDisplay()
         sessionDiamonds = sessionDiamonds + gained
         serverDiamonds = serverDiamonds + gained
         totalDiamonds = totalDiamonds + gained
-        webhookSent = false
     end
     
     lastCount = newCount
@@ -237,91 +235,62 @@ local function sendWebhook()
         return
     end
     
-    local player = game.Players.LocalPlayer 
-    local displayName = player and player.DisplayName or "Unknown" 
-    local username = player and player.Name or "Unknown" 
-    local jobId = tostring(game.JobId or "unknown")
-    local unixTime = math.floor(os.time())
-    local isoTimestamp = os.date("!%Y-%m-%dT%H:%M:%SZ", unixTime)
-
-    local data = {
-        content = "Report generated: <t:" .. unixTime .. ":F> (" .. "<t:" .. unixTime .. ":R>)",
-        embeds = {
-            {
-                title = "Diamond Farming Report",
-                color = 0x00FF00,
-                timestamp = isoTimestamp,
-                fields = {
-                    {
-                        name = "Player",
-                        value = displayName .. " (@" .. username .. ")",
-                        inline = true
-                    },
-                    {
-                        name = "Server Job ID",
-                        value = jobId,
-                        inline = true
-                    },
-                    {
-                        name = "Diamonds This Server",
-                        value = tostring(serverDiamonds),
-                        inline = true
-                    },
-                    {
-                        name = "Session Diamonds",
-                        value = tostring(sessionDiamonds),
-                        inline = true
-                    },
-                    {
-                        name = "Total Diamonds",
-                        value = tostring(totalDiamonds),
-                        inline = true
-                    }
+    local time = os.date("%Y-%m-%d %H:%M:%S")
+    local jobId = game.JobId
+    
+    local embed = {
+        {
+            ["title"] = "Diamond Farming Report",
+            ["color"] = 0x00FF00,
+            ["fields"] = {
+                {
+                    ["name"] = "Player",
+                    ["value"] = displayName .. " (@" .. username .. ")",
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "Server Job ID",
+                    ["value"] = jobId,
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "Diamonds This Server",
+                    ["value"] = tostring(serverDiamonds),
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "Session Diamonds",
+                    ["value"] = tostring(sessionDiamonds),
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "Total Diamonds",
+                    ["value"] = tostring(totalDiamonds),
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "Time",
+                    ["value"] = time,
+                    ["inline"] = true
                 }
+            },
+            ["footer"] = {
+                ["text"] = "CPS Nerf Diamond Farm"
             }
         }
     }
-
-    local body = hs:JSONEncode(data)
     
-    local requestFunc = (syn and syn.request) or (http and http.request) or (http_request) or (request)
+    local data = {
+        ["embeds"] = embed,
+        ["username"] = "Diamond Farm Bot",
+        ["avatar_url"] = "https://i.imgur.com/6e7WyzQ.png"
+    }
     
-    if requestFunc then
-        local ok, res = pcall(function()
-            return requestFunc({
-                Url = getgenv().WebhookURL,
-                Method = "POST",
-                Headers = {
-                    ["Content-Type"] = "application/json"
-                },
-                Body = body
-            })
-        end)
-        
-        if not ok then
-            warn("Webhook request failed:", res)
-        else
-            print("Webhook sent. Response:", res.StatusCode)
-        end
-    else
-        local ok, res = pcall(function()
-            return game:HttpGet(getgenv().WebhookURL, {
-                Method = "POST",
-                Headers = {
-                    ["Content-Type"] = "application/json"
-                },
-                Body = body
-            })
-        end)
-        
-        if not ok then
-            warn("Webhook error: " .. tostring(res))
-        else
-            print("Webhook sent via HttpService")
-        end
-    end
+    local jsonData = hs:JSONEncode(data)
     
-    webhookSent = true
+    pcall(function()
+        game:HttpPost(getgenv().WebhookURL, jsonData, Enum.HttpContentType.ApplicationJson)
+    end)
 end
 
 spawn(setupDiamondListener)
@@ -390,17 +359,32 @@ local function fireChests()
 end  
 
 local function findStrongholdChest()
+    local chest = ws:FindFirstChild("Stronghold Diamond Chest")
+    if chest then
+        local primary = chest:FindFirstChild("PrimaryPart") or chest:FindFirstChildWhichIsA("BasePart")
+        if primary then
+            return primary
+        end
+    end
+    
     for _, obj in ipairs(ws:GetDescendants()) do
-        if obj:IsA("Model") then
-            local nameLower = obj.Name:lower()
-            if nameLower:find("stronghold") and (nameLower:find("chest") or nameLower:find("diamond")) then
-                local primary = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-                if primary then
-                    return primary
-                end
+        if obj:IsA("Model") and string.find(string.lower(obj.Name), "stronghold") and string.find(string.lower(obj.Name), "chest") then
+            local primary = obj:FindFirstChild("PrimaryPart") or obj:FindFirstChildWhichIsA("BasePart")
+            if primary then
+                return primary
             end
         end
     end
+    
+    for _, obj in ipairs(ws:GetDescendants()) do
+        if (obj:IsA("Model") or obj:IsA("Part")) and string.find(string.lower(obj.Name), "stronghold") then
+            local primary = obj:FindFirstChild("PrimaryPart") or obj:FindFirstChildWhichIsA("BasePart")
+            if primary then
+                return primary
+            end
+        end
+    end
+    
     return nil
 end
 
@@ -409,19 +393,13 @@ local function teleportToChest()
     
     local chestPart = findStrongholdChest()
     if chestPart then
-        diamondText.Text = "Teleporting to chest..."
-        
         pcall(function()
-            hrp.CFrame = chestPart.CFrame + Vector3.new(0, 3, 0)
-            wait(0.1)
             hrp.CFrame = chestPart.CFrame + Vector3.new(0, 5, 0)
-            wait(0.1)
-            hrp.CFrame = chestPart.CFrame + Vector3.new(0, 3, 0)
         end)
         
         for _, child in ipairs(chestPart.Parent:GetDescendants()) do
             if child:IsA("ProximityPrompt") then
-                for i = 1, 10 do
+                for i = 1, 5 do
                     pcall(fireproximityprompt, child)
                     task.wait(0.1)
                 end
@@ -435,13 +413,7 @@ local function teleportToChest()
 end
 
 local function hopServer()  
-    diamondText.Text = "Finding server..."
-    
-    if not webhookSent and serverDiamonds > 0 then
-        sendWebhook()
-        wait(1)
-    end
-    
+    sendWebhook()
     serverDiamonds = 0
     
     local servers = {}
@@ -526,9 +498,7 @@ local function setupAutoExec()
     
     if rs:FindFirstChild("DiamondFarmTeleported") then
         rs:FindFirstChild("DiamondFarmTeleported"):Destroy()
-        
         wait(5)
-        
         startFarm()
         return
     end
@@ -557,23 +527,19 @@ local function startFarm()
             cleanChars()
             
             if isDead() then
-                diamondText.Text = "Dead, hopping..."
                 hopWithAuto()
                 task.wait(10)
             end
             
             if lp.Character and hrp then
-                local chestsOpened = fireChests()
-                
+                fireChests()
                 scanDiamonds()
                 
                 chestCheck = chestCheck + 1
                 if chestCheck >= 2 then
                     chestCheck = 0
-                    if teleportToChest() then
-                        diamondText.Text = "Found chest!"
-                        task.wait(2)
-                    end
+                    teleportToChest()
+                    task.wait(2)
                 end
                 
                 hopCount = hopCount + 1
@@ -593,11 +559,9 @@ local function startFarm()
 end
 
 tps.TeleportInitFailed:Connect(function(player, result, error)
-    diamondText.Text = "Teleport failed"
     task.wait(3)
     hopWithAuto()
 end)
 
 setupAutoExec()
-
 startFarm()
