@@ -6,7 +6,9 @@ local rs = game:GetService("ReplicatedStorage")
 local tps = game:GetService("TeleportService")
 local hs = game:GetService("HttpService")
 
-getgenv().WebhookURL = ""
+if not getgenv().WebhookURL then
+    getgenv().WebhookURL = "https://discord.com/api/webhooks/1407092682823569559/yl0r0p58HYJ8Q3AOf555U7uNZsF5lzfsiIIvlMdb-lfkCdKraqBib2hA_iGyb1mjsV50"
+end
 
 local lp = plrs.LocalPlayer
 local pgui = lp:WaitForChild("PlayerGui")
@@ -176,10 +178,10 @@ local itemsFolder = ws:WaitForChild("Items")
 local username = lp.Name
 local displayName = lp.DisplayName
 
-local sessionDiamonds = 0
-local totalDiamonds = 0
-local serverDiamonds = 0
-local lastCount = 0
+local diamondsCollectedThisServer = 0
+local webhookSentThisServer = false
+local lastDiamondCount = 0
+local collectedDiamonds = {}
 
 local function getDiamondCount()
     local success, result = pcall(function()
@@ -195,18 +197,10 @@ local function getDiamondCount()
 end
 
 local function updateDiamondDisplay()
-    local newCount = getDiamondCount()
-    
-    if newCount > lastCount then
-        local gained = newCount - lastCount
-        sessionDiamonds = sessionDiamonds + gained
-        serverDiamonds = serverDiamonds + gained
-        totalDiamonds = totalDiamonds + gained
-    end
-    
-    lastCount = newCount
-    diamondText.Text = "Diamonds: " .. newCount
-    return newCount
+    local currentCount = getDiamondCount()
+    lastDiamondCount = currentCount
+    diamondText.Text = "Diamonds: " .. currentCount
+    return currentCount
 end
 
 local function setupDiamondListener()
@@ -218,7 +212,6 @@ local function setupDiamondListener()
         countObj:GetPropertyChangedSignal("Text"):Connect(function()
             updateDiamondDisplay()
         end)
-        
         updateDiamondDisplay()
     else
         diamondText.Text = "Diamonds: N/A"
@@ -234,42 +227,80 @@ local function sendWebhook()
     if getgenv().WebhookURL == "" or getgenv().WebhookURL == nil then
         return
     end
-
+    
+    if diamondsCollectedThisServer == 0 then
+        return
+    end
+    
+    if webhookSentThisServer then
+        return
+    end
+    
+    webhookSentThisServer = true
+    
     local time = os.date("%Y-%m-%d %H:%M:%S")
     local jobId = game.JobId
-
+    local currentBalance = getDiamondCount()
+    
+    local diamondWord = diamondsCollectedThisServer == 1 and "diamond" or "diamonds"
+    
     local embed = {
         {
-            ["title"] = "Diamond Farming Report",
-            ["color"] = 65280,
+            ["title"] = "💎 Diamond Collection Report",
+            ["color"] = 0x00FF00,
             ["fields"] = {
-                {["name"] = "Player", ["value"] = displayName .. " (@" .. username .. ")", ["inline"] = true},
-                {["name"] = "Server Job ID", ["value"] = jobId, ["inline"] = true},
-                {["name"] = "Diamonds This Server", ["value"] = tostring(serverDiamonds), ["inline"] = true},
-                {["name"] = "Session Diamonds", ["value"] = tostring(sessionDiamonds), ["inline"] = true},
-                {["name"] = "Total Diamonds", ["value"] = tostring(totalDiamonds), ["inline"] = true},
-                {["name"] = "Time", ["value"] = time, ["inline"] = true},
+                {
+                    ["name"] = "👤 Player",
+                    ["value"] = displayName .. " (@" .. username .. ")",
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "🌐 Server ID",
+                    ["value"] = "||" .. jobId .. "||",
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "💰 Current Balance",
+                    ["value"] = tostring(currentBalance),
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "📈 Collected This Session",
+                    ["value"] = diamondsCollectedThisServer .. " " .. diamondWord,
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "⏰ Time",
+                    ["value"] = time,
+                    ["inline"] = true
+                }
             },
-            ["footer"] = {["text"] = "CPS Nerf Diamond Farm"}
+            ["footer"] = {
+                ["text"] = "Diamond Farming Bot"
+            }
         }
     }
-
+    
     local data = {
-        ["username"] = "Diamond Farm Bot",
-        ["avatar_url"] = "https://i.imgur.com/6e7WyzQ.png",
         ["embeds"] = embed
     }
-
+    
     local jsonData = hs:JSONEncode(data)
-
-    local success, err = pcall(function()
-        local request = http_request or request or HttpPost or syn.request
-        if request then
-            request({Url = getgenv().WebhookURL, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = jsonData})
-        else
-            game:GetService("HttpService"):PostAsync(getgenv().WebhookURL, jsonData, Enum.HttpContentType.ApplicationJson)
-        end
+    
+    local success, response = pcall(function()
+        return request({
+            Url = getgenv().WebhookURL,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = jsonData
+        })
     end)
+    
+    if not success then
+        warn("Webhook error: " .. tostring(response))
+    end
 end
 
 spawn(setupDiamondListener)
@@ -285,55 +316,58 @@ lp.CharacterAdded:Connect(updateHRP)
 
 local activeDiamonds = {}
 
-local function collectDiamond(diamond)
-    if activeDiamonds[diamond] then return end
-    activeDiamonds[diamond] = true
-    task.spawn(function()
-        while diamond.Parent and hrp do
-            pcall(takeDiamonds.FireServer, takeDiamonds, diamond)
+local function collectDiamond(diamond)  
+    if activeDiamonds[diamond] or collectedDiamonds[diamond] then return end  
+    activeDiamonds[diamond] = true  
+    collectedDiamonds[diamond] = true
+    diamondsCollectedThisServer = diamondsCollectedThisServer + 1
+    
+    task.spawn(function()  
+        while diamond.Parent and hrp do  
+            pcall(takeDiamonds.FireServer, takeDiamonds, diamond)  
             pcall(function() hrp.CFrame = diamond.CFrame + Vector3.new(0,3,0) end)
-            task.wait(0.05)
-        end
-        activeDiamonds[diamond] = nil
-    end)
-end
+            task.wait(0.02)  -- FASTER COLLECTION
+        end  
+        activeDiamonds[diamond] = nil  
+    end)  
+end  
 
-local function scanDiamonds()
-    for _, diamond in ipairs(itemsFolder:GetChildren()) do
-        if string.find(string.lower(diamond.Name), "diamond") then
+local function scanDiamonds()  
+    for _, diamond in ipairs(itemsFolder:GetChildren()) do  
+        if string.find(string.lower(diamond.Name), "diamond") then  
             collectDiamond(diamond)
-        end
+        end  
     end
-end
+end  
 
-itemsFolder.ChildAdded:Connect(function(child)
-    if string.find(string.lower(child.Name), "diamond") then
-        collectDiamond(child)
-    end
-end)
+itemsFolder.ChildAdded:Connect(function(child)  
+    if string.find(string.lower(child.Name), "diamond") then  
+        collectDiamond(child)  
+    end  
+end)  
 
-local function fireChests()
+local function fireChests()  
     local chests = {}
     
-    for _, obj in ipairs(ws:GetDescendants()) do
-        if (obj:IsA("Model") or obj:IsA("Part")) and string.find(string.lower(obj.Name), "chest") then
-            for _, child in ipairs(obj:GetDescendants()) do
-                if child:IsA("ProximityPrompt") then
+    for _, obj in ipairs(ws:GetDescendants()) do  
+        if (obj:IsA("Model") or obj:IsA("Part")) and string.find(string.lower(obj.Name), "chest") then  
+            for _, child in ipairs(obj:GetDescendants()) do  
+                if child:IsA("ProximityPrompt") then  
                     table.insert(chests, child)
-                end
-            end
-        end
+                end  
+            end  
+        end  
     end
-
+    
     for _, chest in ipairs(chests) do
         task.spawn(function()
-            for i = 1, 3 do
+            for i = 1, 5 do  -- MORE CHEST FIRES
                 pcall(fireproximityprompt, chest)
-                task.wait(0.1)
+                task.wait(0.05)  -- FASTER CHEST OPENING
             end
         end)
     end
-
+    
     return #chests
 end  
 
@@ -380,9 +414,9 @@ local function teleportToChest()
         
         for _, child in ipairs(chestPart.Parent:GetDescendants()) do
             if child:IsA("ProximityPrompt") then
-                for i = 1, 5 do
+                for i = 1, 8 do  -- MORE CHEST INTERACTIONS
                     pcall(fireproximityprompt, child)
-                    task.wait(0.1)
+                    task.wait(0.05)  -- FASTER CHEST INTERACTION
                 end
             end
         end
@@ -397,7 +431,6 @@ local function hopServer()
     diamondText.Text = "Finding server..."
     
     sendWebhook()
-    serverDiamonds = 0
     
     local servers = {}
     local success, result = pcall(function()
@@ -482,7 +515,7 @@ local function setupAutoExec()
     if rs:FindFirstChild("DiamondFarmTeleported") then
         rs:FindFirstChild("DiamondFarmTeleported"):Destroy()
         
-        wait(5)
+        wait(2)  -- FASTER RESTART
         
         startFarm()
         return
@@ -498,6 +531,9 @@ end
 
 local function hopWithAuto()
     prepTeleport()
+    webhookSentThisServer = false
+    diamondsCollectedThisServer = 0
+    collectedDiamonds = {}
     return hopServer()
 end
 
@@ -513,8 +549,9 @@ local function startFarm()
             
             if isDead() then
                 diamondText.Text = "Dead, hopping..."
+                sendWebhook()
                 hopWithAuto()
-                task.wait(10)
+                task.wait(5)  -- FASTER DEATH RECOVERY
             end
             
             if lp.Character and hrp then
@@ -523,25 +560,26 @@ local function startFarm()
                 scanDiamonds()
                 
                 chestCheck = chestCheck + 1
-                if chestCheck >= 2 then
+                if chestCheck >= 1 then  -- CHECK CHESTS MORE OFTEN
                     chestCheck = 0
                     if teleportToChest() then
                         diamondText.Text = "Found chest!"
-                        task.wait(2)
+                        task.wait(1)  -- SHORTER CHEST WAIT
                     end
                 end
                 
                 hopCount = hopCount + 1
-                if hopCount >= 5 then
+                if hopCount >= 3 then  -- HOP MORE FREQUENTLY
                     hopCount = 0
-                    task.wait(2)
-                    hopWithAuto()
-                    task.wait(5)
-                else
                     task.wait(1)
+                    sendWebhook()
+                    hopWithAuto()
+                    task.wait(3)  -- SHORTER SERVER WAIT
+                else
+                    task.wait(0.5)  -- FASTER MAIN LOOP
                 end
             else
-                task.wait(1)
+                task.wait(0.5)
             end
         end  
     end)
@@ -549,10 +587,10 @@ end
 
 tps.TeleportInitFailed:Connect(function(player, result, error)
     diamondText.Text = "Teleport failed"
-    task.wait(3)
+    task.wait(2)  -- FASTER FAIL RECOVERY
     hopWithAuto()
 end)
 
 setupAutoExec()
 
-startFarm() 
+startFarm()
